@@ -1,5 +1,7 @@
 from django.db import models
 import datetime as dt
+from django.contrib.auth.models import User
+from tinymce.models import HTMLField
 
 # Create your models here.
 class Editor(models.Model):
@@ -24,12 +26,12 @@ class tags(models.Model):
         return self.name
 
 class Article(models.Model):
-    title = models.CharField(max_length =60)
-    post = models.TextField()
-    # editor = models.ForeignKey(Editor)
+    title = models.CharField(max_length=60)
+    post = HTMLField()
+    editor = models.ForeignKey(User,on_delete=models.CASCADE)
     tags = models.ManyToManyField(tags)
     pub_date = models.DateTimeField(auto_now_add=True)
-    article_image = models.ImageField(upload_to = 'articles/')
+    article_image = models.ImageField(upload_to='articles/', blank=True)
 
     def __str__(self):
         return self.title
@@ -47,4 +49,8 @@ class Article(models.Model):
     @classmethod
     def search_by_title(cls,search_term):
         news = cls.objects.filter(title__icontains=search_term)
-        return news    
+        return news  
+
+class NewsLetterRecipients(models.Model):
+    name = models.CharField(max_length = 30)
+    email = models.EmailField()          

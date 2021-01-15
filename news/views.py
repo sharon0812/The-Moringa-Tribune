@@ -1,14 +1,36 @@
 from django.shortcuts import render, redirect
-from django.http  import HttpResponse,Http404
+from django.http import HttpResponse, Http404,HttpResponseRedirect
 import datetime as dt
 from .models import Article
+from .forms import NewsLetterForm
+from .email import send_welcome_email
+from django.contrib.auth.decorators import login_required
+from .forms import NewArticleForm, NewsLetterForm
+
+
+@login_required(login_url='/accounts/login/')
+def new_article(request):
+    current_user = request.user
+    if request.method == 'POST':
+        form = NewArticleForm(request.POST, request.FILES)
+        if form.is_valid():
+            article = form.save(commit=False)
+            article.editor = current_user
+            article.save()
+        return redirect('NewsToday')
+
+    else:
+        form = NewArticleForm()
+    return render(request, 'new_article.html', {"form": form})
 
 # Create your views here.
 def welcome(request):
     return render(request, 'welcome.html')
+
 def news_of_day(request):
     date = dt.date.today()
     return render(request, 'all-news/today-news.html', {"date": date,})
+
 # View Function to present news from past days
 def past_days_news(request, past_date):
     try:
@@ -26,7 +48,20 @@ def past_days_news(request, past_date):
 def news_today(request):
     date = dt.date.today()
     news = Article.todays_news()
-    return render(request, 'all-news/today-news.html', {"date": date,"news":news})
+
+    if request.method == 'POST':
+        form = NewsLetterForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['your_name']
+            email = form.cleaned_data['email']
+
+            recipient = NewsLetterRecipients(name = name,email =email)
+            recipient.save()
+            send_welcome_email(name,email)
+            HttpResponseRedirect('news_today')
+    else:
+        form = NewsLetterForm()
+    return render(request, 'all-news/today-news.html', {"date": date,"news":news,"letterForm":form})
 
 def search_results(request):
     if 'article' in request.GET and request.GET["article"]:
@@ -37,9 +72,13 @@ def search_results(request):
     else:
         message = "You haven't searched for any term"
         return render(request, 'all-news/search.html',{"message":message})
+
 def article(request,article_id):
     try:
         article = Article.objects.get(id = article_id)
     except DoesNotExist:
         raise Http404()
     return render(request,"all-news/article.html", {"article":article})
+
+
+
